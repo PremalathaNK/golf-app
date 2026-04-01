@@ -1,5 +1,5 @@
 import { Navigate } from "react-router-dom";
-import { supabase } from "../supabase";
+import { supabase } from "../lib/supabase";
 
 export default function PrivateRoute({ children }) {
   const user = supabase.auth.user(); // get current user
