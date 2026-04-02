@@ -4,12 +4,14 @@ import { supabase } from '../lib/supabase'
 export const signUp = async (email, password) => {
   const { data, error } = await supabase.auth.signUp({
     email,
-    password
+    password,
+    options: {
+      emailRedirectTo: window.location.origin + '/auth',
+    },
   })
 
   if (error) {
-    alert(error.message)
-    return null
+    throw error
   }
 
   return data
@@ -24,8 +26,7 @@ export const login = async (email, password) => {
   })
 
   if (error) {
-    alert(error.message)
-    return null
+    throw error
   }
 
   return data

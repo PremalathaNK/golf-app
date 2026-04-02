@@ -1,69 +1,96 @@
-import { useState } from 'react'
-import { createDraw, runDraw } from '../services/drawService'
-import { isSubscribed } from '../services/subscriptionService'
+import { useEffect, useState } from 'react'
+import { getThisMonthDraw, submitEntryForThisMonth } from '../services/drawService'
 
-const Draw = ({ userId }) => {
+const Draw = ({ userId, onDrawComplete }) => {
+  const [draw, setDraw] = useState(null)
   const [result, setResult] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [running, setRunning] = useState(false)
+  const [error, setError] = useState('')
 
-  // ✅ RUN DRAW
-  const handleDraw = async () => {
-    console.log("Run draw clicked")
-
-    // 🔒 Check subscription
-    const subscribed = await isSubscribed(userId)
-
-    if (!subscribed) {
-      alert("Please subscribe first")
-      return
+  const refresh = async () => {
+    setError('')
+    setLoading(true)
+    try {
+      const d = await getThisMonthDraw()
+      setDraw(d)
+    } catch (e) {
+      setError(e.message ?? 'Failed to load draw')
+    } finally {
+      setLoading(false)
     }
-
-    // 🎲 Create draw
-    const draw = await createDraw()
-
-    if (!draw) {
-      alert("Draw creation failed")
-      return
-    }
-
-    // 🧠 Run draw logic
-    const res = await runDraw(draw.id, userId)
-
-    if (!res) {
-      alert("Draw failed")
-      return
-    }
-
-    setResult(res)
   }
 
-  // 🔄 RESET DRAW
-  const handleReset = () => {
-    setResult(null)
+  useEffect(() => {
+    refresh()
+  }, [])
+
+  const handleEnter = async () => {
+    if (running) return
+    setError('')
+    setRunning(true)
+    try {
+      const res = await submitEntryForThisMonth(userId)
+      setResult(res)
+      onDrawComplete?.()
+    } catch (e) {
+      setError(e.message ?? 'Failed to submit entry')
+    } finally {
+      setRunning(false)
+    }
   }
 
   return (
     <div>
       <h2>Monthly Draw</h2>
 
-      <button onClick={handleDraw}>
-        Run Draw
-      </button>
+      {loading ? <div className="muted">Loading draw…</div> : null}
+      {error ? <p style={{ color: 'salmon' }}>{error}</p> : null}
 
-      <button onClick={handleReset}>
-        Reset Draw
-      </button>
+      {!loading && !draw ? (
+        <p className="muted">No draw has been created for this month yet (admin action required).</p>
+      ) : null}
 
-      {result && (
+      {!loading && draw ? (
         <div>
+          <p className="muted" style={{ marginTop: 0 }}>
+            Status: <b>{draw.status}</b>
+          </p>
+
+          {draw.status !== 'published' ? (
+            <p className="muted">This month’s result is not published yet. Come back after admin publishes.</p>
+          ) : (
+            <button className="btn btnPrimary" onClick={handleEnter} disabled={running}>
+              {running ? 'Checking…' : 'Enter / Check result'}
+            </button>
+          )}
+        </div>
+      ) : null}
+
+      {result ? (
+        <div style={{ marginTop: 12 }}>
           <p>Draw Numbers: {result.drawNumbers.join(', ')}</p>
           <p>Your Scores: {result.userScores.join(', ')}</p>
           <p>Matches: {result.matches}</p>
-
           <p>
-            <b>Prize Won: ₹{result.prize}</b>
+            <b>Prize Won: ₹{result.prize ?? 0}</b>
           </p>
+          {result.alreadyEntered ? (
+            <p className="muted" style={{ marginTop: 0 }}>
+              You already entered this month’s draw. This is your official stored result.
+            </p>
+          ) : null}
+          {result.alreadyEntered &&
+          Array.isArray(result.currentScores) &&
+          result.currentScores.length === 5 &&
+          result.currentScores.join(',') !== result.userScores.join(',') ? (
+            <p className="muted" style={{ marginTop: 0 }}>
+              Your current 5 scores are now: <b>{result.currentScores.join(', ')}</b>. The draw uses the 5-score
+              snapshot that was saved when you entered.
+            </p>
+          ) : null}
         </div>
-      )}
+      ) : null}
     </div>
   )
 }

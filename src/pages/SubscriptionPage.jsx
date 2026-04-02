@@ -1,11 +1,8 @@
 import Subscription from '../components/Subscription'
 
-const SubscriptionPage = ({ user }) => {
+const SubscriptionPage = ({ user, onSubscribed }) => {
   return (
-    <div>
-      <h1>Subscription Required</h1>
-      <Subscription userId={user.id} />
-    </div>
+    <Subscription userId={user.id} onSubscribed={onSubscribed} />
   )
 }
 

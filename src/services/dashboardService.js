@@ -13,8 +13,11 @@ export const getTotalWinnings = async (userId) => {
       return 0
     }
 
-    const total = data.reduce((sum, item) => sum + item.amount, 0)
-    return total
+    const total = (data ?? []).reduce((sum, item) => {
+      const n = typeof item.amount === 'number' ? item.amount : Number(item.amount)
+      return sum + (Number.isFinite(n) ? n : 0)
+    }, 0)
+    return Number(total.toFixed(2))
 
   } catch (error) {
     console.error("Unexpected Error:", error)
@@ -31,13 +34,14 @@ export const getDrawHistory = async (userId) => {
       .select(`
         id,
         match_count,
-        draws (
+        created_at,
+        draws:draws (
           draw_date,
           numbers
         )
       `)
       .eq('user_id', userId)
-      .order('id', { ascending: false })
+      .order('created_at', { ascending: false })
       .limit(5)
 
     if (error) {
@@ -51,4 +55,40 @@ export const getDrawHistory = async (userId) => {
     console.error(error)
     return []
   }
+}
+
+export const getWinnings = async (userId) => {
+  const { data, error } = await supabase
+    .from('winnings')
+    .select(
+      `
+      id,
+      amount,
+      status,
+      proof_url,
+      created_at,
+      draws:draws (
+        draw_date,
+        numbers
+      )
+    `
+    )
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(10)
+
+  if (error) throw error
+  return data ?? []
+}
+
+export const submitWinnerProof = async (winningId, proofUrl) => {
+  const { data, error } = await supabase
+    .from('winnings')
+    .update({ proof_url: proofUrl, status: 'submitted' })
+    .eq('id', winningId)
+    .select('*')
+    .single()
+
+  if (error) throw error
+  return data
 }

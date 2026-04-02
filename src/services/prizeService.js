@@ -23,7 +23,8 @@ export const saveWinnings = async (userId, drawId, matches) => {
           status: 'pending'
         }
       ])
-      .select()
+      .select('*')
+      .single()
 
     if (error) {
       console.error("Winnings Insert Error:", error)
@@ -32,7 +33,7 @@ export const saveWinnings = async (userId, drawId, matches) => {
 
     console.log("Winnings saved:", data)
 
-    return { amount }
+    return { amount, winning: data }
 
   } catch (error) {
     console.error(error)
